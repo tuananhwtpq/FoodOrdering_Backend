@@ -19,6 +19,11 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 
+data class LoginResponsePayload(
+    val token: String,
+    val customerName: String,
+    val role: String
+)
 object AuthService {
     private val httpClient = HttpClient(CIO)
 
@@ -48,22 +53,36 @@ object AuthService {
         }
     }
 
-    fun login(email: String, passwordHash: String, userRole: UserRole): String? {
+    fun login(email: String, passwordHash: String, userRole: UserRole): LoginResponsePayload? {
         return transaction {
             val user = UsersTable.select {
-                (UsersTable.email eq email) and (UsersTable.passwordHash eq passwordHash) and (UsersTable.role.lowerCase() eq userRole.name.lowercase())
+                (UsersTable.email eq email) and
+                        (UsersTable.passwordHash eq passwordHash) and
+                        (UsersTable.role.lowerCase() eq userRole.name.lowercase())
             }.singleOrNull()
 
             user?.let {
                 val userId = it[UsersTable.id]
+                val name   = it[UsersTable.name]
+                val role   = it[UsersTable.role]
+
+                // vẫn giữ logic thêm địa chỉ mặc định nếu chưa có
                 val address = AddressService.getAddressesByUser(userId)
                 if (address.isEmpty()) {
                     AddressService.createDefaultAddress(userId)
                 }
-                JwtConfig.generateToken(userId.toString())
+
+                val token = JwtConfig.generateToken(userId.toString())
+                LoginResponsePayload(
+                    token = token,
+                    customerName = name,
+                    role = role
+                )
             }
         }
     }
+
+
 
     // Google OAuth User Info
     /**

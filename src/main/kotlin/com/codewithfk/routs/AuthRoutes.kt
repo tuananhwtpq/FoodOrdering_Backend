@@ -37,24 +37,29 @@ fun Route.authRoutes() {
 
     post("/auth/login") {
         val params = call.receive<Map<String, String>>()
-        val email =
-            params["email"] ?: return@post call.respondText("Email is required", status = HttpStatusCode.BadRequest)
-        val passwordHash = params["password"] ?: return@post call.respondText(
-            "Password is required",
-            status = HttpStatusCode.BadRequest
-        )
 
-        val packageName = call.request.header("X-Package-Name")
+        val email = params["email"]
+            ?: return@post call.respondText("Email is required", status = HttpStatusCode.BadRequest)
+        val passwordHash = params["password"]
+            ?: return@post call.respondText("Password is required", status = HttpStatusCode.BadRequest)
+        val roleParam = params["role"]
+            ?: return@post call.respondText("Role is required", status = HttpStatusCode.BadRequest)
 
-        val userType = when(packageName){
-            "com.codewithfk.foodhub" -> UserRole.CUSTOMER
-            "com.codewithfk.foodhub.restaurant" -> UserRole.OWNER
-            "com.codewithfk.foodhub.rider" -> UserRole.RIDER
-            else -> UserRole.CUSTOMER
+        val userRole = try {
+            UserRole.valueOf(roleParam.uppercase())
+        } catch (_: IllegalArgumentException) {
+            return@post call.respondText("Invalid role", status = HttpStatusCode.BadRequest)
         }
-        val token = AuthService.login(email, passwordHash,userType)
-        if (token != null) {
-            call.respond(mapOf("token" to token))
+
+        val result = AuthService.login(email, passwordHash, userRole)
+        if (result != null) {
+            call.respond(
+                mapOf(
+                    "token" to result.token,
+                    "customerName" to result.customerName,
+                    "role" to result.role
+                )
+            )
         } else {
             call.respondText("Invalid credentials", status = HttpStatusCode.Unauthorized)
         }
