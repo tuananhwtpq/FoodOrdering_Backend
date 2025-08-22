@@ -29,10 +29,17 @@ fun Route.authRoutes() {
             "Password is required",
             status = HttpStatusCode.BadRequest
         )
-        val role = params["role"] ?: "customer"
+        val role = params["role"] ?: return@post call.respondText(
+            "Role is required",
+            status = HttpStatusCode.BadRequest
+        )
 
-        val token = AuthService.register(name, email, passwordHash, role)
-        call.respond(mapOf("token" to token))
+        val authResponse = AuthService.register(name, email, passwordHash, role)
+        if (authResponse != null) {
+            call.respond(authResponse)
+        } else {
+            call.respondText("Email already exists", status = HttpStatusCode.Conflict)
+        }
     }
 
     post("/auth/login") {
@@ -43,18 +50,15 @@ fun Route.authRoutes() {
             "Password is required",
             status = HttpStatusCode.BadRequest
         )
+        val role = params["role"] ?: return@post call.respondText(
+            "Role is required",
+            status = HttpStatusCode.BadRequest
+        )
 
-        val packageName = call.request.header("X-Package-Name")
 
-        val userType = when(packageName){
-            "com.codewithfk.foodhub" -> UserRole.CUSTOMER
-            "com.codewithfk.foodhub.restaurant" -> UserRole.OWNER
-            "com.codewithfk.foodhub.rider" -> UserRole.RIDER
-            else -> UserRole.CUSTOMER
-        }
-        val token = AuthService.login(email, passwordHash,userType)
-        if (token != null) {
-            call.respond(mapOf("token" to token))
+        val authResponse = AuthService.login(email, passwordHash, role)
+        if (authResponse != null) {
+            call.respond(authResponse)
         } else {
             call.respondText("Invalid credentials", status = HttpStatusCode.Unauthorized)
         }

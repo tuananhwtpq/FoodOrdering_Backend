@@ -4,6 +4,7 @@ package com.codewithfk.services
 import com.codewithfk.JwtConfig
 import com.codewithfk.database.UsersTable
 import com.codewithfk.model.AuthProvider
+import com.codewithfk.model.AuthResponse
 import com.codewithfk.model.UserRole
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -22,8 +23,14 @@ import java.util.UUID
 object AuthService {
     private val httpClient = HttpClient(CIO)
 
-    fun register(name: String, email: String, passwordHash: String, role: String): String {
+    fun register(name: String, email: String, passwordHash: String, role: String): AuthResponse? {
         return transaction {
+
+            val existingUser = UsersTable.select { UsersTable.email eq email }.count()
+            if (existingUser > 0) {
+                return@transaction null // Trả về null nếu email đã tồn tại
+            }
+
             val userId = UUID.randomUUID()
             UsersTable.insert {
                 it[id] = userId
@@ -37,7 +44,9 @@ object AuthService {
             if (address.isEmpty()) {
                 AddressService.createDefaultAddress(userId)
             }
-            JwtConfig.generateToken(userId.toString())
+            val token = JwtConfig.generateToken(userId.toString())
+
+            AuthResponse(token = token, role = role)
         }
     }
 
@@ -48,19 +57,18 @@ object AuthService {
         }
     }
 
-    fun login(email: String, passwordHash: String, userRole: UserRole): String? {
+    fun login(email: String, passwordHash: String, role: String): AuthResponse? {
         return transaction {
             val user = UsersTable.select {
-                (UsersTable.email eq email) and (UsersTable.passwordHash eq passwordHash) and (UsersTable.role.lowerCase() eq userRole.name.lowercase())
+                (UsersTable.email eq email) and (UsersTable.passwordHash eq passwordHash) and (UsersTable.role.lowerCase() eq role.lowercase())
             }.singleOrNull()
 
             user?.let {
                 val userId = it[UsersTable.id]
-                val address = AddressService.getAddressesByUser(userId)
-                if (address.isEmpty()) {
-                    AddressService.createDefaultAddress(userId)
-                }
-                JwtConfig.generateToken(userId.toString())
+                val userRole = it[UsersTable.role]
+                val token = JwtConfig.generateToken(userId.toString())
+
+                AuthResponse(token = token, role = userRole)
             }
         }
     }
