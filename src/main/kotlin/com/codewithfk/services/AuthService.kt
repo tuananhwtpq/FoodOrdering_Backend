@@ -46,7 +46,7 @@ object AuthService {
             }
             val token = JwtConfig.generateToken(userId.toString())
 
-            AuthResponse(token = token, role = role)
+            AuthResponse(token = token, role = role, userId =  userId.toString())
         }
     }
 
@@ -68,7 +68,7 @@ object AuthService {
                 val userRole = it[UsersTable.role]
                 val token = JwtConfig.generateToken(userId.toString())
 
-                AuthResponse(token = token, role = userRole)
+                AuthResponse(token = token, role = userRole, userId = userId.toString())
             }
         }
     }
