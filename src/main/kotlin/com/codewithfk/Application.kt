@@ -132,6 +132,7 @@ fun Application.module() {
             paymentRoutes()
             notificationRoutes()
             restaurantOwnerRoutes()
+            restaurantRoutes()
         }
 
         trackingRoutes()
