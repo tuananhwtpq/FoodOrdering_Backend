@@ -29,37 +29,36 @@ fun Route.authRoutes() {
             "Password is required",
             status = HttpStatusCode.BadRequest
         )
-        val role = params["role"] ?: "customer"
+        val role = params["role"] ?: return@post call.respondText(
+            "Role is required",
+            status = HttpStatusCode.BadRequest
+        )
 
-        val token = AuthService.register(name, email, passwordHash, role)
-        call.respond(mapOf("token" to token))
+        val authResponse = AuthService.register(name, email, passwordHash, role)
+        if (authResponse != null) {
+            call.respond(authResponse)
+        } else {
+            call.respondText("Email already exists", status = HttpStatusCode.Conflict)
+        }
     }
 
     post("/auth/login") {
         val params = call.receive<Map<String, String>>()
+        val email =
+            params["email"] ?: return@post call.respondText("Email is required", status = HttpStatusCode.BadRequest)
+        val passwordHash = params["password"] ?: return@post call.respondText(
+            "Password is required",
+            status = HttpStatusCode.BadRequest
+        )
+        val role = params["role"] ?: return@post call.respondText(
+            "Role is required",
+            status = HttpStatusCode.BadRequest
+        )
 
-        val email = params["email"]
-            ?: return@post call.respondText("Email is required", status = HttpStatusCode.BadRequest)
-        val passwordHash = params["password"]
-            ?: return@post call.respondText("Password is required", status = HttpStatusCode.BadRequest)
-        val roleParam = params["role"]
-            ?: return@post call.respondText("Role is required", status = HttpStatusCode.BadRequest)
 
-        val userRole = try {
-            UserRole.valueOf(roleParam.uppercase())
-        } catch (_: IllegalArgumentException) {
-            return@post call.respondText("Invalid role", status = HttpStatusCode.BadRequest)
-        }
-
-        val result = AuthService.login(email, passwordHash, userRole)
-        if (result != null) {
-            call.respond(
-                mapOf(
-                    "token" to result.token,
-                    "customerName" to result.customerName,
-                    "role" to result.role
-                )
-            )
+        val authResponse = AuthService.login(email, passwordHash, role)
+        if (authResponse != null) {
+            call.respond(authResponse)
         } else {
             call.respondText("Invalid credentials", status = HttpStatusCode.Unauthorized)
         }

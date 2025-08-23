@@ -4,6 +4,7 @@ package com.codewithfk.services
 import com.codewithfk.JwtConfig
 import com.codewithfk.database.UsersTable
 import com.codewithfk.model.AuthProvider
+import com.codewithfk.model.AuthResponse
 import com.codewithfk.model.UserRole
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -19,16 +20,17 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 
-data class LoginResponsePayload(
-    val token: String,
-    val customerName: String,
-    val role: String
-)
 object AuthService {
     private val httpClient = HttpClient(CIO)
 
-    fun register(name: String, email: String, passwordHash: String, role: String): String {
+    fun register(name: String, email: String, passwordHash: String, role: String): AuthResponse? {
         return transaction {
+
+            val existingUser = UsersTable.select { UsersTable.email eq email }.count()
+            if (existingUser > 0) {
+                return@transaction null // Trả về null nếu email đã tồn tại
+            }
+
             val userId = UUID.randomUUID()
             UsersTable.insert {
                 it[id] = userId
@@ -42,7 +44,9 @@ object AuthService {
             if (address.isEmpty()) {
                 AddressService.createDefaultAddress(userId)
             }
-            JwtConfig.generateToken(userId.toString())
+            val token = JwtConfig.generateToken(userId.toString())
+
+            AuthResponse(token = token, role = role, userId =  userId.toString())
         }
     }
 
@@ -53,36 +57,21 @@ object AuthService {
         }
     }
 
-    fun login(email: String, passwordHash: String, userRole: UserRole): LoginResponsePayload? {
+    fun login(email: String, passwordHash: String, role: String): AuthResponse? {
         return transaction {
             val user = UsersTable.select {
-                (UsersTable.email eq email) and
-                        (UsersTable.passwordHash eq passwordHash) and
-                        (UsersTable.role.lowerCase() eq userRole.name.lowercase())
+                (UsersTable.email eq email) and (UsersTable.passwordHash eq passwordHash) and (UsersTable.role.lowerCase() eq role.lowercase())
             }.singleOrNull()
 
             user?.let {
                 val userId = it[UsersTable.id]
-                val name   = it[UsersTable.name]
-                val role   = it[UsersTable.role]
-
-                // vẫn giữ logic thêm địa chỉ mặc định nếu chưa có
-                val address = AddressService.getAddressesByUser(userId)
-                if (address.isEmpty()) {
-                    AddressService.createDefaultAddress(userId)
-                }
-
+                val userRole = it[UsersTable.role]
                 val token = JwtConfig.generateToken(userId.toString())
-                LoginResponsePayload(
-                    token = token,
-                    customerName = name,
-                    role = role
-                )
+
+                AuthResponse(token = token, role = userRole, userId = userId.toString())
             }
         }
     }
-
-
 
     // Google OAuth User Info
     /**
