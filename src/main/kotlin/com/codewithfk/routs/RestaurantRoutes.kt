@@ -53,6 +53,16 @@ fun Route.restaurantRoutes() {
                 )
                 call.respond(mapOf("id" to restaurantId.toString(), "message" to "Restaurant added successfully"))
             }
+            get("/owner/me") {
+                val principal = call.principal<JWTPrincipal>()
+                    ?: return@get call.respondError("Unauthorized", HttpStatusCode.Unauthorized)
+
+                val ownerId = principal.payload.getClaim("userId").asString()
+                    ?: return@get call.respondError("Unauthorized", HttpStatusCode.Unauthorized)
+
+                val restaurants = RestaurantService.getRestaurantsByOwnerId(UUID.fromString(ownerId))
+                call.respond(HttpStatusCode.OK, mapOf("data" to restaurants))
+            }
         }
 
         /**
