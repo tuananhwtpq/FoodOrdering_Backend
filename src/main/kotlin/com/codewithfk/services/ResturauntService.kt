@@ -25,7 +25,13 @@ object RestaurantService {
      * Add a new restaurant.
      */
     fun addRestaurant(
-        ownerId: UUID, name: String, address: String, latitude: Double, longitude: Double, categoryId: UUID
+        ownerId: UUID,
+        name: String,
+        address: String,
+        latitude: Double,
+        longitude: Double,
+        categoryId: UUID,
+        imageUrl: String? = null
     ): UUID {
         return transaction {
             RestaurantsTable.insert {
@@ -35,6 +41,7 @@ object RestaurantService {
                 it[this.latitude] = latitude
                 it[this.longitude] = longitude
                 it[this.categoryId] = categoryId
+                it[this.imageUrl] = imageUrl
             } get RestaurantsTable.id
         }
     }

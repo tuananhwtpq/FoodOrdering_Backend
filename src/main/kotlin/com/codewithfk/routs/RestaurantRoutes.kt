@@ -22,38 +22,42 @@ fun Route.restaurantRoutes() {
         authenticate {
             post {
                 val params = call.receive<Map<String, String>>()
-                val ownerId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
-                    ?: return@post call.respondError("Unauthorized.", HttpStatusCode.Unauthorized)
 
-                val name = params["name"] ?: return@post call.respondError(
-                    "Restaurant name is required.",
-                    HttpStatusCode.BadRequest
-                )
-                val address = params["address"] ?: return@post call.respondError(
-                    "Restaurant address is required.",
-                    HttpStatusCode.BadRequest,
-                )
-                val latitude = params["latitude"]?.toDoubleOrNull() ?: return@post call.respondError(
-                    "Latitude is required.",
-                    HttpStatusCode.BadRequest,
-                )
-                val longitude = params["longitude"]?.toDoubleOrNull() ?: return@post call.respondError(
-                    "Longitude is required.",
-                    HttpStatusCode.BadRequest,
-                )
+                val ownerId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
+                    ?: return@post call.respondError("Không được phép.", HttpStatusCode.Unauthorized)
+
+                val name = params["name"]
+                    ?: return@post call.respondError("Tên nhà hàng là bắt buộc.", HttpStatusCode.BadRequest)
+                val address = params["address"]
+                    ?: return@post call.respondError("Địa chỉ nhà hàng là bắt buộc.", HttpStatusCode.BadRequest)
+                val latitude = params["latitude"]?.toDoubleOrNull()
+                    ?: return@post call.respondError("Vĩ độ là bắt buộc.", HttpStatusCode.BadRequest)
+                val longitude = params["longitude"]?.toDoubleOrNull()
+                    ?: return@post call.respondError("Kinh độ là bắt buộc.", HttpStatusCode.BadRequest)
                 val categoryId = params["categoryId"]
-                    ?: return@post call.respondError("Valid category ID is required.", HttpStatusCode.BadRequest)
+                    ?: return@post call.respondError("ID danh mục hợp lệ là bắt buộc.", HttpStatusCode.BadRequest)
+
+                val imageUrl = params["imageUrl"]
 
                 val restaurantId = RestaurantService.addRestaurant(
-                    UUID.fromString(ownerId),
-                    name,
-                    address,
-                    latitude,
-                    longitude,
-                    UUID.fromString(categoryId)
+                    ownerId = UUID.fromString(ownerId),
+                    name = name,
+                    address = address,
+                    latitude = latitude,
+                    longitude = longitude,
+                    categoryId = UUID.fromString(categoryId),
+                    imageUrl = imageUrl
                 )
-                call.respond(mapOf("id" to restaurantId.toString(), "message" to "Restaurant added successfully"))
+
+                call.respond(
+                    mapOf(
+                        "id" to restaurantId.toString(),
+                        "message" to "Thêm nhà hàng thành công"
+                    )
+                )
             }
+
+
             get("/owner/me") {
                 val principal = call.principal<JWTPrincipal>()
                     ?: return@get call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
