@@ -2,6 +2,7 @@ package com.codewithfk.routs
 
 import com.codewithfk.services.RestaurantService
 import com.codewithfk.utils.respondError
+import com.codewithfk.utils.safeUserId
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -52,6 +53,22 @@ fun Route.restaurantRoutes() {
                     UUID.fromString(categoryId)
                 )
                 call.respond(mapOf("id" to restaurantId.toString(), "message" to "Restaurant added successfully"))
+            }
+            get("/owner/me") {
+                val principal = call.principal<JWTPrincipal>()
+                    ?: return@get call.respond(io.ktor.http.HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
+                val ownerUUID = principal.safeUserId()
+                    ?: return@get call.respond(io.ktor.http.HttpStatusCode.Unauthorized, mapOf("error" to "Missing userId claim"))
+
+                try {
+                    application.environment.log.info("GET /restaurants/owner/me ownerId=$ownerUUID")
+                    val restaurants = RestaurantService.getRestaurantsByOwnerId(ownerUUID)
+                    call.respond(io.ktor.http.HttpStatusCode.OK, mapOf("data" to restaurants))
+                } catch (e: Exception) {
+                    application.environment.log.error("owner/me failed for $ownerUUID", e)
+                    call.respond(io.ktor.http.HttpStatusCode.InternalServerError, mapOf("error" to "read restaurants failed"))
+                }
             }
         }
 

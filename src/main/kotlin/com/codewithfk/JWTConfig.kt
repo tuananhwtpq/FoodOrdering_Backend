@@ -18,10 +18,13 @@ object JwtConfig {
         .withAudience(audience)
         .build()
 
-    fun generateToken(userId: String): String = JWT.create()
-        .withIssuer(issuer)
-        .withAudience(audience)
-        .withClaim("userId", userId)
-        .withExpiresAt(Date(System.currentTimeMillis() + validityInMs))
-        .sign(algorithm)
+    fun generateToken(userId: String): String =
+        JWT.create()
+            .withIssuer(issuer)
+            .withAudience(audience)
+            .withSubject("auth")
+            .withClaim("userId", userId)                 // BẮT BUỘC
+            .withExpiresAt(Date(System.currentTimeMillis() + validityInMs))
+            .sign(algorithm)
+
 }

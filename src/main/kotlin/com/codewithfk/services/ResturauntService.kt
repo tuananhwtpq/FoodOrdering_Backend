@@ -115,7 +115,26 @@ object RestaurantService {
                 }
         }
     }
-
+    fun getRestaurantsByOwnerId(ownerId: UUID): List<Restaurant> {
+        return transaction {
+            RestaurantsTable
+                .select { RestaurantsTable.ownerId eq ownerId }
+                .map { row ->
+                    Restaurant(
+                        id = row[RestaurantsTable.id].toString(),
+                        ownerId = row[RestaurantsTable.ownerId].toString(),
+                        name = row[RestaurantsTable.name],
+                        address = row[RestaurantsTable.address],
+                        categoryId = row[RestaurantsTable.categoryId].toString(),
+                        latitude = row[RestaurantsTable.latitude],
+                        longitude = row[RestaurantsTable.longitude],
+                        createdAt = row[RestaurantsTable.createdAt].toString(),
+                        distance = null,
+                        imageUrl = row[RestaurantsTable.imageUrl].toString()
+                    )
+                }
+        }
+    }
 
 
 
