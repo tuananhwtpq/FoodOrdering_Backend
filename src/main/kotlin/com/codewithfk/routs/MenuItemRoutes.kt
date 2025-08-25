@@ -63,6 +63,7 @@ fun Route.menuItemRoutes() {
             } catch (e: IllegalArgumentException) {
                 call.respondError("Invalid menu item ID format.", HttpStatusCode.BadRequest)
             }
+        }
         patch {
             val itemId = call.parameters["itemId"] ?: return@patch call.respondError("Menu item ID is required.", HttpStatusCode.BadRequest)
             val json = call.receive<JsonObject>()
