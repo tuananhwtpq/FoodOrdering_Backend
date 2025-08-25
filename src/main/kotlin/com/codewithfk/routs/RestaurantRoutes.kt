@@ -60,19 +60,13 @@ fun Route.restaurantRoutes() {
 
             get("/owner/me") {
                 val principal = call.principal<JWTPrincipal>()
-                    ?: return@get call.respond(io.ktor.http.HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                    ?: return@get call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
 
-                val ownerUUID = principal.safeUserId()
-                    ?: return@get call.respond(io.ktor.http.HttpStatusCode.Unauthorized, mapOf("error" to "Missing userId claim"))
+                val ownerId = principal.payload.getClaim("userId").asString()
+                    ?: return@get call.respondError(HttpStatusCode.Unauthorized, "Missing userId claim")
 
-                try {
-                    application.environment.log.info("GET /restaurants/owner/me ownerId=$ownerUUID")
-                    val restaurants = RestaurantService.getRestaurantsByOwnerId(ownerUUID)
-                    call.respond(io.ktor.http.HttpStatusCode.OK, mapOf("data" to restaurants))
-                } catch (e: Exception) {
-                    application.environment.log.error("owner/me failed for $ownerUUID", e)
-                    call.respond(io.ktor.http.HttpStatusCode.InternalServerError, mapOf("error" to "read restaurants failed"))
-                }
+                val list = RestaurantService.getRestaurantsByOwnerId(UUID.fromString(ownerId))
+                call.respond(HttpStatusCode.OK, mapOf("data" to list))
             }
         }
 

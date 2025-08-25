@@ -9,6 +9,10 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import java.util.*
 import kotlin.text.get
 
@@ -59,6 +63,20 @@ fun Route.menuItemRoutes() {
             } catch (e: IllegalArgumentException) {
                 call.respondError("Invalid menu item ID format.", HttpStatusCode.BadRequest)
             }
+        }
+        patch {
+            val itemId = call.parameters["itemId"] ?: return@patch call.respondError("Menu item ID is required.", HttpStatusCode.BadRequest)
+            val json = call.receive<JsonObject>()
+            val fields = buildMap<String, Any?> {
+                json["name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let { put("name", it) }
+                json["description"]?.jsonPrimitive?.contentOrNull?.let { put("description", it) }
+                json["price"]?.jsonPrimitive?.doubleOrNull?.let { put("price", it) }
+                json["imageUrl"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let { put("imageUrl", it) }
+                json["arModelUrl"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let { put("arModelUrl", it) }
+            }
+            val ok = MenuItemService.updateMenuItem(UUID.fromString(itemId), fields)
+            if (ok) call.respond(mapOf("message" to "Menu item updated successfully"))
+            else call.respondError("Menu item not found", HttpStatusCode.NotFound)
         }
 
         /**

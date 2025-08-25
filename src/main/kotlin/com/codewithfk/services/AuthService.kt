@@ -3,7 +3,6 @@ package com.codewithfk.services
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.codewithfk.JwtConfig
-import com.codewithfk.database.AddressesTable
 import com.codewithfk.database.UsersTable
 import com.codewithfk.model.AuthProvider
 import com.codewithfk.model.AuthResponse
@@ -42,14 +41,13 @@ object AuthService {
                 it[this.role] = role
                 it[this.authProvider] = "email"
             }
-//            val address = AddressService.getAddressesByUser(userId)
-//            if (address.isEmpty()) {
-//                AddressService.createDefaultAddress(userId)
-//            }
-
+            val address = AddressService.getAddressesByUser(userId)
+            if (address.isEmpty()) {
+                AddressService.createDefaultAddress(userId)
+            }
             val token = JwtConfig.generateToken(userId.toString())
 
-            AuthResponse(token = token, role = role, userId =  userId.toString(), email = email, username = name, isProfileComplete = false)
+            AuthResponse(token = token, role = role, userId =  userId.toString(), email = email, username = name)
         }
     }
 
@@ -59,37 +57,71 @@ object AuthService {
             user?.get(UsersTable.email)
         }
     }
-
-    fun login(email: String, plainTextPassword: String, role: String): AuthResponse? { // Đổi tên biến
+    private fun isBcryptHash(value: String): Boolean {
+        // BCrypt phổ biến có prefix $2a$, $2b$, $2y$
+        return value.startsWith("\$2a$") || value.startsWith("\$2b$") || value.startsWith("\$2y$")
+    }
+    private fun hashPassword(plain: String): String {
+        return BCrypt.withDefaults().hashToString(12, plain.toCharArray())
+    }
+    fun login(
+        email: String,
+        plainTextPassword: String,
+        role: String,
+        rehashLegacy: Boolean = true // true = re-hash tài khoản cũ (plaintext) ngay lần đăng nhập đầu
+    ): AuthResponse? {
         return transaction {
             val userRow = UsersTable.select {
                 (UsersTable.email eq email) and (UsersTable.role.lowerCase() eq role.lowercase())
             }.singleOrNull() ?: return@transaction null
 
-            val storedPasswordHash = userRow[UsersTable.passwordHash]
+            val stored = userRow[UsersTable.passwordHash]
+            val storedLooksLikeBcrypt = isBcryptHash(stored.toString())
 
-            val result = BCrypt.verifyer().verify(plainTextPassword.toCharArray(), storedPasswordHash)
+            // 1) Nếu là bcrypt -> verify bằng BCrypt
+            val bcryptVerified = if (storedLooksLikeBcrypt) {
+                runCatching {
+                    BCrypt.verifyer().verify(plainTextPassword.toCharArray(), stored).verified
+                }.getOrDefault(false)
+            } else false
 
-            if (result.verified) {
-                val userId = userRow[UsersTable.id]
-                val userRole = userRow[UsersTable.role]
-                val token = JwtConfig.generateToken(userId.toString())
-                val userName = userRow[UsersTable.name]
+            when {
+                // Đúng mật khẩu theo bcrypt
+                bcryptVerified -> buildAuthResponse(userRow)
 
-                val addressCount = AddressesTable.select { AddressesTable.userId eq userId }.count()
+                // 2) Không phải bcrypt và plaintext trùng -> cho đăng nhập
+                !storedLooksLikeBcrypt && stored == plainTextPassword -> {
+                    if (rehashLegacy) {
+                        // Chuẩn hoá dữ liệu: cập nhật ngay thành bcrypt để các lần sau verify chuẩn
+                        val newHash = hashPassword(plainTextPassword)
+                        UsersTable.update({ UsersTable.id eq userRow[UsersTable.id] }) {
+                            it[passwordHash] = newHash
+                        }
+                    }
+                    buildAuthResponse(userRow)
+                }
 
-                AuthResponse(
-                    token = token,
-                    role = userRole,
-                    userId = userId.toString(),
-                    email = email,
-                    username = userName,
-                    isProfileComplete = addressCount > 0
-                )
-            } else {
-                null
+                // Sai mật khẩu
+                else -> null
             }
         }
+    }
+
+    /* -------------------- Helper dựng AuthResponse (THÊM MỚI) -------------------- */
+    private fun buildAuthResponse(userRow: ResultRow): AuthResponse {
+        val userId = userRow[UsersTable.id]
+        val userRole = userRow[UsersTable.role]
+        val userName = userRow[UsersTable.name]
+        val emailFromDb = userRow[UsersTable.email]
+        val token = JwtConfig.generateToken(userId.toString()) // Có thể thêm claim role/exp nếu cần
+
+        return AuthResponse(
+            token = token,
+            role = userRole,
+            userId = userId.toString(),
+            email = emailFromDb,
+            username = userName
+        )
     }
 
     // Google OAuth User Info
