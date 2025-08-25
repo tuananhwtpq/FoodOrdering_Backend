@@ -23,7 +23,7 @@ fun Route.addressRoutes() {
                     ?: return@get call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
                 
                 val addresses = AddressService.getAddressesByUser(UUID.fromString(userId))
-                call.respond(mapOf("addresses" to addresses))
+                call.respond(mapOf("data" to addresses))
             }
 
             // Add a new address

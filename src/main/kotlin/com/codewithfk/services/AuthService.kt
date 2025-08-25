@@ -3,6 +3,7 @@ package com.codewithfk.services
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.codewithfk.JwtConfig
+import com.codewithfk.database.AddressesTable
 import com.codewithfk.database.UsersTable
 import com.codewithfk.model.AuthProvider
 import com.codewithfk.model.AuthResponse
@@ -41,13 +42,14 @@ object AuthService {
                 it[this.role] = role
                 it[this.authProvider] = "email"
             }
-            val address = AddressService.getAddressesByUser(userId)
-            if (address.isEmpty()) {
-                AddressService.createDefaultAddress(userId)
-            }
+//            val address = AddressService.getAddressesByUser(userId)
+//            if (address.isEmpty()) {
+//                AddressService.createDefaultAddress(userId)
+//            }
+
             val token = JwtConfig.generateToken(userId.toString())
 
-            AuthResponse(token = token, role = role, userId =  userId.toString(), email = email, username = name)
+            AuthResponse(token = token, role = role, userId =  userId.toString(), email = email, username = name, isProfileComplete = false)
         }
     }
 
@@ -74,12 +76,15 @@ object AuthService {
                 val token = JwtConfig.generateToken(userId.toString())
                 val userName = userRow[UsersTable.name]
 
+                val addressCount = AddressesTable.select { AddressesTable.userId eq userId }.count()
+
                 AuthResponse(
                     token = token,
                     role = userRole,
                     userId = userId.toString(),
                     email = email,
-                    username = userName
+                    username = userName,
+                    isProfileComplete = addressCount > 0
                 )
             } else {
                 null
