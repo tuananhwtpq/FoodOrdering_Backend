@@ -19,13 +19,13 @@ data class TokenRequest(val token: String)
 fun Route.authRoutes() {
 
 
-    post("  /auth/signup") {
+    post("/auth/signup") {
         val params = call.receive<Map<String, String>>()
         val name =
             params["name"] ?: return@post call.respondText("Name is required", status = HttpStatusCode.BadRequest)
         val email =
             params["email"] ?: return@post call.respondText("Email is required", status = HttpStatusCode.BadRequest)
-        val passwordHash = params["password"] ?: return@post call.respondText(
+        val password = params["password"] ?: return@post call.respondText(
             "Password is required",
             status = HttpStatusCode.BadRequest
         )
@@ -34,7 +34,7 @@ fun Route.authRoutes() {
             status = HttpStatusCode.BadRequest
         )
 
-        val authResponse = AuthService.register(name, email, passwordHash, role)
+        val authResponse = AuthService.register(name, email, password, role)
         if (authResponse != null) {
             call.respond(authResponse)
         } else {
@@ -45,7 +45,7 @@ fun Route.authRoutes() {
     post("/auth/login") {
         val params = call.receive<Map<String, String>>()
         val email = params["email"] ?: return@post call.respondText("Email is required", status = HttpStatusCode.BadRequest)
-        val passwordHash = params["password"] ?: return@post call.respondText(
+        val password = params["password"] ?: return@post call.respondText(
             "Password is required",
             status = HttpStatusCode.BadRequest
         )
@@ -55,7 +55,7 @@ fun Route.authRoutes() {
         )
 
 
-        val authResponse = AuthService.login(email, passwordHash, role)
+        val authResponse = AuthService.login(email, password, role)
         if (authResponse != null) {
             call.respond(authResponse)
         } else {

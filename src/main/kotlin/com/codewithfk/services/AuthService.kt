@@ -1,6 +1,7 @@
 package com.codewithfk.services
 
 
+import at.favre.lib.crypto.bcrypt.BCrypt
 import com.codewithfk.JwtConfig
 import com.codewithfk.database.UsersTable
 import com.codewithfk.model.AuthProvider
@@ -23,20 +24,20 @@ import java.util.UUID
 object AuthService {
     private val httpClient = HttpClient(CIO)
 
-    fun register(name: String, email: String, passwordHash: String, role: String): AuthResponse? {
+    fun register(name: String, email: String, plainTextPassword: String, role: String): AuthResponse? { // Đổi tên biến cho rõ nghĩa
         return transaction {
-
-            val existingUser = UsersTable.select { UsersTable.email eq email }.count()
-            if (existingUser > 0) {
-                return@transaction null // Trả về null nếu email đã tồn tại
+            if (UsersTable.select { UsersTable.email eq email }.count() > 0) {
+                return@transaction null // Email đã tồn tại
             }
+
+            val hashedPassword = BCrypt.withDefaults().hashToString(12, plainTextPassword.toCharArray())
 
             val userId = UUID.randomUUID()
             UsersTable.insert {
                 it[id] = userId
                 it[this.name] = name
                 it[this.email] = email
-                it[this.passwordHash] = passwordHash
+                it[this.passwordHash] = hashedPassword
                 it[this.role] = role
                 it[this.authProvider] = "email"
             }
@@ -46,7 +47,7 @@ object AuthService {
             }
             val token = JwtConfig.generateToken(userId.toString())
 
-            AuthResponse(token = token, role = role, userId =  userId.toString())
+            AuthResponse(token = token, role = role, userId =  userId.toString(), email = email, username = name)
         }
     }
 
@@ -57,18 +58,31 @@ object AuthService {
         }
     }
 
-    fun login(email: String, passwordHash: String, role: String): AuthResponse? {
+    fun login(email: String, plainTextPassword: String, role: String): AuthResponse? { // Đổi tên biến
         return transaction {
-            val user = UsersTable.select {
-                (UsersTable.email eq email) and (UsersTable.passwordHash eq passwordHash) and (UsersTable.role.lowerCase() eq role.lowercase())
-            }.singleOrNull()
+            val userRow = UsersTable.select {
+                (UsersTable.email eq email) and (UsersTable.role.lowerCase() eq role.lowercase())
+            }.singleOrNull() ?: return@transaction null
 
-            user?.let {
-                val userId = it[UsersTable.id]
-                val userRole = it[UsersTable.role]
+            val storedPasswordHash = userRow[UsersTable.passwordHash]
+
+            val result = BCrypt.verifyer().verify(plainTextPassword.toCharArray(), storedPasswordHash)
+
+            if (result.verified) {
+                val userId = userRow[UsersTable.id]
+                val userRole = userRow[UsersTable.role]
                 val token = JwtConfig.generateToken(userId.toString())
+                val userName = userRow[UsersTable.name]
 
-                AuthResponse(token = token, role = userRole, userId = userId.toString())
+                AuthResponse(
+                    token = token,
+                    role = userRole,
+                    userId = userId.toString(),
+                    email = email,
+                    username = userName
+                )
+            } else {
+                null
             }
         }
     }
