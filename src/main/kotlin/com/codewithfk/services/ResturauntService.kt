@@ -59,7 +59,7 @@ object RestaurantService {
 
             query.mapNotNull {
                 val distance = haversine(lat, lon, it[RestaurantsTable.latitude], it[RestaurantsTable.longitude])
-                if (distance <= 5.0) { // Only include restaurants within 5KM
+                if (distance <= 10.0) {
                     Restaurant(
                         id = it[RestaurantsTable.id].toString(),
                         ownerId = it[RestaurantsTable.ownerId].toString(),

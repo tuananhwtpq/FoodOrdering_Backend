@@ -60,6 +60,7 @@ dependencies {
     implementation("com.google.firebase:firebase-admin:9.2.0")
 
     implementation("io.ktor:ktor-server-websockets:1.6.0")
+    implementation("at.favre.lib:bcrypt:0.10.2")
 
     // Ktor client
     implementation("io.ktor:ktor-client-core:2.3.0")

@@ -10,6 +10,16 @@ import java.util.*
 
 object MenuItemService {
 
+
+    fun getMenuItemById(id: UUID): MenuItem? {
+        return transaction {
+            MenuItemsTable.select { MenuItemsTable.id eq id }
+                .map { toMenuItem(it) }
+                .singleOrNull()
+        }
+    }
+
+
     fun getMenuItemsByRestaurant(restaurantId: UUID): List<MenuItem> {
         return transaction {
             MenuItemsTable.select { MenuItemsTable.restaurantId eq restaurantId }
@@ -57,5 +67,18 @@ object MenuItemService {
         return transaction {
             MenuItemsTable.deleteWhere { MenuItemsTable.id eq itemId } > 0
         }
+    }
+
+    private fun toMenuItem(row: ResultRow): MenuItem {
+        return MenuItem(
+            id = row[MenuItemsTable.id].toString(),
+            restaurantId = row[MenuItemsTable.restaurantId].toString(),
+            name = row[MenuItemsTable.name],
+            description = row[MenuItemsTable.description],
+            price = row[MenuItemsTable.price],
+            imageUrl = row[MenuItemsTable.imageUrl],
+            arModelUrl = row[MenuItemsTable.arModelUrl],
+            createdAt = row[MenuItemsTable.createdAt].toString()
+        )
     }
 }

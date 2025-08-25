@@ -27,7 +27,7 @@ fun Route.menuItemRoutes() {
                 HttpStatusCode.BadRequest
             )
             val menuItems = MenuItemService.getMenuItemsByRestaurant(UUID.fromString(restaurantId))
-            call.respond(mapOf("foodItems" to menuItems))
+            call.respond(mapOf("data" to menuItems))
         }
 
         /**
@@ -44,9 +44,25 @@ fun Route.menuItemRoutes() {
     }
 
     route("/menu/{itemId}") {
+
         /**
-         * Update a menu item
+         * Get details of a specific menu item by its ID
          */
+        get {
+            val itemId = call.parameters["itemId"] ?: return@get call.respondError(
+                "Menu item ID is required.", HttpStatusCode.BadRequest
+            )
+
+            try {
+                val menuItem = MenuItemService.getMenuItemById(UUID.fromString(itemId))
+                if (menuItem != null) {
+                    call.respond(HttpStatusCode.OK, mapOf("data" to menuItem))
+                } else {
+                    call.respondError("Menu item not found.", HttpStatusCode.NotFound)
+                }
+            } catch (e: IllegalArgumentException) {
+                call.respondError("Invalid menu item ID format.", HttpStatusCode.BadRequest)
+            }
         patch {
             val itemId = call.parameters["itemId"] ?: return@patch call.respondError("Menu item ID is required.", HttpStatusCode.BadRequest)
             val json = call.receive<JsonObject>()
