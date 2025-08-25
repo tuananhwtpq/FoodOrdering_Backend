@@ -90,13 +90,13 @@ object AddressService {
         transaction {
             AddressesTable.insert {
                 it[AddressesTable.userId] = (userId)
-                it[addressLine1] = "1600 Amphitheatre Parkway"
-                it[city] = "Mountain View"
-                it[state] = "CA"
-                it[zipCode] = "94043"
-                it[country] = "US"
-                it[latitude] = 37.422102
-                it[longitude] = -122.084153
+                it[addressLine1] = "Số 298 Đ. Cầu Diễn, Minh Khai, Bắc Từ Liêm"
+                it[city] = "Hà Nội"
+                it[state] = "Hà Nội"
+                it[zipCode] = "11000"
+                it[country] = "VN"
+                it[latitude] = 21.053731
+                it[longitude] = 105.7351068
             } get AddressesTable.id
         }
     }

@@ -12,8 +12,7 @@ object OrderService {
 
     fun getCheckoutDetails(userId: UUID): CheckoutModel {
         return transaction {
-            val cartItems =
-                CartTable.select { (CartTable.userId eq userId) }
+            val cartItems = CartTable.select { (CartTable.userId eq userId) }
 
             if (cartItems.empty()) {
                 return@transaction CheckoutModel(
@@ -24,20 +23,22 @@ object OrderService {
                 )
             }
 
-            val totalAmount = cartItems.sumOf {
+            val subTotal = cartItems.sumOf {
                 val quantity = it[CartTable.quantity]
                 val price = MenuItemsTable.select { MenuItemsTable.id eq it[CartTable.menuItemId] }
                     .single()[MenuItemsTable.price]
                 quantity * price
             }
 
-            val tax = totalAmount * 0.1
-            val deliveryFee = 1.0
-            val total = totalAmount + tax + deliveryFee
+            val tax = 0.0
+
+            val deliveryFee = if (subTotal < 50000.0) 0.0 else 20000.0
+
+            val totalAmount = subTotal + tax + deliveryFee
 
             CheckoutModel(
-                subTotal = totalAmount,
-                totalAmount = total,
+                subTotal = subTotal,
+                totalAmount = totalAmount,
                 tax = tax,
                 deliveryFee = deliveryFee
             )
@@ -69,12 +70,15 @@ object OrderService {
             }
 
             // Calculate total amount
-            val totalAmount = cartItems.sumOf {
-                val quantity = it[CartTable.quantity]
-                val price = MenuItemsTable.select { MenuItemsTable.id eq it[CartTable.menuItemId] }
-                    .single()[MenuItemsTable.price]
-                quantity * price
-            }
+//            val totalAmount = cartItems.sumOf {
+//                val quantity = it[CartTable.quantity]
+//                val price = MenuItemsTable.select { MenuItemsTable.id eq it[CartTable.menuItemId] }
+//                    .single()[MenuItemsTable.price]
+//                quantity * price
+//            }
+
+            val checkoutDetails = getCheckoutDetails(userId)
+            val totalAmount = checkoutDetails.totalAmount
 
             // Create order
             val orderId = OrdersTable.insert {
