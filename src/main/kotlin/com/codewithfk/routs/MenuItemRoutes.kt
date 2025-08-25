@@ -1,6 +1,5 @@
 package com.codewithfk.routs
 
-
 import com.codewithfk.model.MenuItem
 import com.codewithfk.services.MenuItemService
 import com.codewithfk.utils.respondError
@@ -10,7 +9,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.util.*
-import kotlin.text.get
 
 fun Route.menuItemRoutes() {
     route("/restaurants/{id}/menu") {
@@ -39,8 +37,25 @@ fun Route.menuItemRoutes() {
         }
     }
 
-    route("/menu/{itemId}") {
+    // Đặt route /menu/most-populated trước
+    get("/menu/most-populated") {
+        try {
+            val (restaurantId, menuItems) = MenuItemService.getMenuItemsFromMostPopulatedRestaurant()
+            if (restaurantId != null && menuItems.isNotEmpty()) {
+                call.respond(HttpStatusCode.OK, mapOf(
+                    "restaurantId" to restaurantId.toString(),
+                    "data" to menuItems
+                ))
+            } else {
+                call.respondError("No restaurant with menu items found.", HttpStatusCode.NotFound)
+            }
+        } catch (e: Exception) {
+            call.respondError("Failed to fetch menu items: ${e.message}", HttpStatusCode.InternalServerError)
+        }
+    }
 
+    // Route /menu/{itemId} đặt sau
+    route("/menu/{itemId}") {
         /**
          * Get details of a specific menu item by its ID
          */
@@ -48,7 +63,6 @@ fun Route.menuItemRoutes() {
             val itemId = call.parameters["itemId"] ?: return@get call.respondError(
                 "Menu item ID is required.", HttpStatusCode.BadRequest
             )
-
             try {
                 val menuItem = MenuItemService.getMenuItemById(UUID.fromString(itemId))
                 if (menuItem != null) {

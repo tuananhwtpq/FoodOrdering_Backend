@@ -6,7 +6,9 @@ import com.codewithfk.model.MenuItem
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.Count
 import java.util.*
+
 
 object MenuItemService {
 
@@ -16,6 +18,28 @@ object MenuItemService {
             MenuItemsTable.select { MenuItemsTable.id eq id }
                 .map { toMenuItem(it) }
                 .singleOrNull()
+        }
+    }
+
+    fun getMenuItemsFromMostPopulatedRestaurant(): Pair<UUID?, List<MenuItem>> {
+        return transaction {
+            val mostPopulatedRestaurantId = MenuItemsTable
+                .slice(MenuItemsTable.restaurantId, Count(MenuItemsTable.id).alias("itemCount"))
+                .selectAll()
+                .groupBy(MenuItemsTable.restaurantId)
+                .orderBy(Count(MenuItemsTable.id), SortOrder.DESC)
+                .limit(1)
+                .map { it[MenuItemsTable.restaurantId] }
+                .firstOrNull()
+
+            val menuItems = if (mostPopulatedRestaurantId != null) {
+                MenuItemsTable.select { MenuItemsTable.restaurantId eq mostPopulatedRestaurantId }
+                    .map { toMenuItem(it) }
+            } else {
+                emptyList()
+            }
+
+            Pair(mostPopulatedRestaurantId, menuItems)
         }
     }
 
