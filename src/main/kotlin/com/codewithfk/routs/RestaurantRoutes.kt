@@ -106,5 +106,18 @@ fun Route.restaurantRoutes() {
 
             call.respond(HttpStatusCode.OK, mapOf("data" to restaurant))
         }
+
+        get("/search") {
+            val query = call.request.queryParameters["query"] ?: return@get call.respondError(
+                "Query parameter is required.", HttpStatusCode.BadRequest
+            )
+            try {
+                val result = RestaurantService.searchByName(query)
+                call.respond(HttpStatusCode.OK, mapOf("data" to result))
+            } catch (e: Exception) {
+                application.environment.log.error("Search failed for query=$query", e)
+                call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Search failed"))
+            }
+        }
     }
 }

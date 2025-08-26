@@ -1,7 +1,10 @@
 package com.codewithfk.services
 
+import com.codewithfk.database.MenuItemsTable
 import com.codewithfk.database.RestaurantsTable
+import com.codewithfk.model.MenuItem
 import com.codewithfk.model.Restaurant
+import com.codewithfk.repository.toMenuItem
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
@@ -143,6 +146,44 @@ object RestaurantService {
         }
     }
 
+    fun searchByName(query: String): SearchResult {
+        return transaction {
+            val lowerQuery = query.lowercase()
+
+            // Tìm kiếm nhà hàng theo tên
+            val restaurants = RestaurantsTable
+                .select { RestaurantsTable.name.lowerCase() like "%$lowerQuery%" }
+                .map { row ->
+                    Restaurant(
+                        id = row[RestaurantsTable.id].toString(),
+                        ownerId = row[RestaurantsTable.ownerId].toString(),
+                        name = row[RestaurantsTable.name],
+                        address = row[RestaurantsTable.address],
+                        categoryId = row[RestaurantsTable.categoryId].toString(),
+                        latitude = row[RestaurantsTable.latitude],
+                        longitude = row[RestaurantsTable.longitude],
+                        createdAt = row[RestaurantsTable.createdAt].toString(),
+                        distance = null,
+                        imageUrl = row[RestaurantsTable.imageUrl].toString()
+                    )
+                }
+
+            val menuItems = MenuItemsTable
+                .select { MenuItemsTable.name.lowerCase() like "%$lowerQuery%" }
+                .map { it.toMenuItem() }
+
+            SearchResult(
+                restaurants = restaurants,
+                menuItems = menuItems
+            )
+        }
+    }
+
 
 
 }
+
+data class SearchResult(
+    val restaurants: List<Restaurant>,
+    val menuItems: List<MenuItem>
+)
